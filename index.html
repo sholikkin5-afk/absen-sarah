@@ -50,16 +50,27 @@ navigator.mediaDevices.getUserMedia({video: {width: 400, height: 300, facingMode
 .then(s => {document.getElementById('video').srcObject = s;})
 .catch(err => {document.getElementById("status").innerHTML = `❌ Kamera Gagal: ${err.message}`});
 
-// 2. LOAD AI WAJAH DULU, KEMUDIAN CEK GPS
-Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/')
-]).then(() => {
+// 2. LOAD AI WAJAH DENGAN PENANGANAN ERROR CDN
+faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/')
+.then(() => {
   aiSiap = true; 
   document.getElementById("status").innerHTML = "✅ AI Siap. Cek Lokasi...";
   cekGPS(); 
-}).catch(err => {
-  document.getElementById("status").innerHTML = `❌ Gagal memuat AI Wajah`;
+})
+.catch(err => {
+  // Coba fallback ke CDN alternatif jika yang pertama gagal
+  faceapi.nets.tinyFaceDetector.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights')
+  .then(() => {
+    aiSiap = true; 
+    document.getElementById("status").innerHTML = "✅ AI Siap (Alt). Cek Lokasi...";
+    cekGPS();
+  })
+  .catch(e => {
+    document.getElementById("status").innerHTML = `❌ Gagal memuat AI Wajah. Periksa koneksi internet.`;
+    console.error(e);
+  });
 });
+
 
 // 3. FUNGSI CEK GPS
 function cekGPS(){
