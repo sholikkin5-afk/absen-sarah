@@ -8,11 +8,12 @@
 <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <style>
   body{font-family:'Segoe UI',sans-serif;background:#f0fff4;text-align:center;padding:20px}
-  .card{background:white;border:3px solid #00c853;border-radius:16px;padding:20px;max-width:400px;margin:10px auto;position:relative}
+ .card{background:white;border:3px solid #00c853;border-radius:16px;padding:20px;max-width:400px;margin:10px auto;position:relative}
   button{padding:12px 20px;border:none;border-radius:10px;background:gray;color:white;font-weight:bold;font-size:16px;margin:5px}
   button.aktif{background:#1976d2;cursor:pointer}
   video, canvas{width:100%;border-radius:10px;margin-top:10px;border:2px solid #00c853}
   #peringatan{color:red;font-weight:bold}
+  #loading{display:none;color:#1976d2}
 </style>
 </head>
 <body>
@@ -27,9 +28,11 @@
     <option value="3">Elva</option>
   </select> <br><br>
   
-  <video id="video" autoplay muted playsinline></video>
-  <canvas id="overlay"></canvas>
-  <p id="peringatan">Muat model wajah... Tunggu</p>
+  <video id="video" width="400" height="300" autoplay muted playsinline></video>
+  <canvas id="overlay" width="400" height="300" style="position:absolute; top: 120px; left: 50%; transform: translateX(-50%); pointer-events: none;"></canvas>
+  <canvas id="canvas" style="display:none"></canvas>
+  <p id="peringatan">Muat model wajah... Tunggu 5 detik</p>
+  <p id="loading">⏳ Mengupload...</p>
   
   <button id="btnMasuk" onclick="mulaiAbsen('masuk')" disabled>📸 Absen Masuk</button>
   <button id="btnPulang" onclick="mulaiAbsen('pulang')" disabled>📸 Absen Pulang</button>
@@ -45,44 +48,67 @@ const LOKASI_TOKO = {lat: -6.8881856, lng: 112.4565244}
 const RADIUS = 100 
 let bolehAbsen = false;
 let sudahKedip = false;
+let stream;
 
 // 1. NYALAKAN KAMERA + LOAD MODEL WAJAH
 Promise.all([
   faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'),
   faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights')
-]).then(startVideo)
+]).then(startVideo).catch(err => {
+  document.getElementById("peringatan").innerHTML = "❌ Gagal muat model: " + err
+})
 
 function startVideo() {
-  navigator.mediaDevices.getUserMedia({video: true})
-  .then(s => {document.getElementById('video').srcObject = s})
-  .catch(() => {document.getElementById("peringatan").innerHTML = "❌ Kamera ditolak"})
+  navigator.mediaDevices.getUserMedia({video: {width: 400, height: 300}})
+ .then(s => {
+    stream = s;
+    document.getElementById('video').srcObject = s;
+    document.getElementById("peringatan").innerHTML = "Arahkan wajah + Kedip 1x"
+  })
+ .catch(() => {document.getElementById("peringatan").innerHTML = "❌ Kamera ditolak"})
 }
 
-// 2. DETEKSI KEDIP TIAP 100ms
+// 2. RUMUS DETEKSI KEDIP EAR
+function hitungEAR(eye){
+  const a = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y)
+  const b = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y)
+  const c = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y)
+  return (a + b) / (2.0 * c)
+}
+
+// 3. DETEKSI KEDIP TIAP 200ms
+const video = document.getElementById('video')
 video.addEventListener('play', () => {
   const canvas = document.getElementById('overlay')
-  const displaySize = { width: video.width, height: video.height }
+  const displaySize = { width: 400, height: 300 }
   faceapi.matchDimensions(canvas, displaySize)
   setInterval(async () => {
     const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks()
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
     if(detections){
-      const leftEye = detections.landmarks.getLeftEye()
-      const rightEye = detections.landmarks.getRightEye()
-      const ear = hitungEAR(leftEye, rightEye) // Eye Aspect Ratio
+      const landmarks = detections.landmarks
+      const leftEye = landmarks.getLeftEye()
+      const rightEye = landmarks.getRightEye()
+      const earLeft = hitungEAR(leftEye)
+      const earRight = hitungEAR(rightEye)
+      const ear = (earLeft + earRight) / 2.0
       
-      if(ear < 0.2){ // Nek kedip
-        sudahKedip = true;
-        document.getElementById("peringatan").innerHTML = "✅ Kedip Terdeteksi. Silakan Absen"
-        document.getElementById("btnMasuk").classList.add('aktif')
-        document.getElementById("btnPulang").classList.add('aktif')
-        document.getElementById("btnMasuk").disabled = false
-        document.getElementById("btnPulang").disabled = false
+      if(ear < 0.23){ // Nek kedip
+        if(!sudahKedip){
+          sudahKedip = true;
+          document.getElementById("peringatan").innerHTML = "✅ Kedip Terdeteksi. Silakan Absen"
+          document.getElementById("btnMasuk").classList.add('aktif')
+          document.getElementById("btnPulang").classList.add('aktif')
+          document.getElementById("btnMasuk").disabled = false
+          document.getElementById("btnPulang").disabled = false
+        }
       }
     }
-  }, 100)
+  }, 200)
 })
 
-// 3. CEK LOKASI
+// 4. CEK LOKASI
 navigator.geolocation.getCurrentPosition((pos) => {
   const jarak = hitungJarak(pos.coords.latitude, pos.coords.longitude, LOKASI_TOKO.lat, LOKASI_TOKO.lng)
   if(jarak <= RADIUS){
@@ -91,22 +117,79 @@ navigator.geolocation.getCurrentPosition((pos) => {
   } else {
     document.getElementById("status").innerHTML = `❌ Anda ${jarak.toFixed(0)}m dari toko`
   }
+}, (err) => {
+  document.getElementById("status").innerHTML = `❌ GPS Gagal: ${err.message}`
 })
 
+// 5. FUNGSI ABSEN LENGKAP
 async function mulaiAbsen(tipe){
   if(!bolehAbsen) return alert("Anda di luar area toko!")
   if(!sudahKedip) return alert("Kedip dulu di depan kamera!")
   
-  // ... lanjut kode upload foto + simpan ke supabase koyo wingi ...
-  alert(`✅ Absen ${tipe} Berhasil. Wajah + Kedip tervalidasi`)
-  sudahKedip = false; // reset ben kedip neh pas absen pulang
+  document.getElementById("loading").style.display = 'block';
+  document.getElementById("btnMasuk").disabled = true;
+  document.getElementById("btnPulang").disabled = true;
+  
+  // AMBIL FOTO
+  const canvas = document.getElementById('canvas');
+  canvas.width = 400;
+  canvas.height = 300;
+  canvas.getContext('2d').drawImage(video, 0, 0, 400, 300);
+  
+  // KOMPRES FOTO BEN ENTENG
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.5));
+  const fileName = `${document.getElementById("karyawan").value}_${Date.now()}.jpg`;
+  
+  // UPLOAD FOTO KE STORAGE
+  const {data: uploadData, error: uploadError} = await db.storage
+   .from('absen-foto')
+   .upload(fileName, blob)
+    
+  if(uploadError){
+    document.getElementById("loading").style.display = 'none';
+    return alert("Gagal upload foto: " + uploadError.message)
+  }
+  
+  const fotoUrl = `${SUPABASE_URL}/storage/v1/object/public/absen-foto/${fileName}`
+
+  // SIMPAN KE TABEL
+  const karyawan_id = document.getElementById("karyawan").value;
+  const jam = new Date();
+  
+  const {error} = await db.from('absensi').insert([{
+    karyawan_id: karyawan_id,
+    tipe: tipe,
+    jam: jam,
+    foto_url: fotoUrl,
+    lokasi_lat: LOKASI_TOKO.lat,
+    lokasi_lng: LOKASI_TOKO.lng
+  }])
+  
+  document.getElementById("loading").style.display = 'none';
+  
+  if(!error){
+    alert(`✅ Absen ${tipe} Berhasil jam ${jam.toLocaleTimeString('id-ID')}`)
+    sudahKedip = false; // reset ben kedip neh pas absen pulang
+    document.getElementById("btnMasuk").disabled = true;
+    document.getElementById("btnPulang").disabled = true;
+    document.getElementById("btnMasuk").classList.remove('aktif')
+    document.getElementById("btnPulang").classList.remove('aktif')
+    document.getElementById("peringatan").innerHTML = "Arahkan wajah + Kedip 1x"
+  } else {
+    alert("Gagal simpan: " + error.message)
+  }
 }
 
-function hitungEAR(left, right){ // rumus deteksi kedip
-  // Disingkat. Inti e nek jarak mata nutup < 0.2 berarti kedip
-  return 0.15; // sementara. Asline itungan matematika
+// 6. RUMUS JARAK
+function hitungJarak(lat1, lon1, lat2, lon2){
+  const R = 6371e3; 
+  const φ1 = lat1 * Math.PI/180; 
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180; 
+  const Δλ = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-function hitungJarak(lat1, lon1, lat2, lon2){ ... } // pake fungsi sing wingi
 </script>
 </body>
 </html>
