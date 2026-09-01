@@ -2,14 +2,14 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Absen SARAHmart AUTO V5.2 PWA</title>
+<title>Absen SARAHmart AUTO V5.3 PWA</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#203a43">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Absen SARAH">
 <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1048/1048946.png">
-<link rel="manifest" href="manifest.json"> <!-- FILE BARU -->
+<link rel="manifest" href="manifest.json">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
@@ -29,18 +29,15 @@
 .modal-header{font-size:22px;font-weight:800;margin-bottom:10px}
 .modal-body{font-size:14px;line-height:1.6;margin-bottom:20px}
 .modal-btn{background:#56ab2f;color:white;border:none;padding:12px 30px;border-radius:12px;font-weight:bold;font-size:16px;cursor:pointer}
-/* POPUP INSTALL PWA */
-#installBox{display:none;position:fixed;bottom:20px;left:10px;right:10px;background:#00c853;color:white;padding:15px;border-radius:15px;z-index:9999;box-shadow:0 5px 15px rgba(0,0,0,0.3);align-items:center;justify-content:space-between}
-#installBox button{margin-left:10px;padding:8px 15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer}
+#btnInstallManual{display:none;position:fixed;top:10px;right:10px;z-index:9999;background:#00c853;color:white;border:none;padding:8px 15px;border-radius:20px;font-weight:bold;box-shadow:0 4px 10px rgba(0,0,0,0.3)}
 </style>
 </head>
 <body>
+
+<button id="btnInstallManual">📲 Install App</button>
+
 <h2>🤖 ABSEN AUTO SARAHmart</h2>
 <p class="subtitle">Tinggal Ngadep Kamera - Auto Absen + Suara</p>
-
-<!-- TOMBOL INSTALL BARU -->
-<button id="btnInstallManual" style="display:none;position:fixed;top:10px;right:10px;z-index:9999;background:#00c853;color:white;border:none;padding:8px 15px;border-radius:20px;font-weight:bold">📲 Install App</button>
-
 <div class="card">
   <div class="nama-detek" id="namaDetek">⏳ Memindai Wajah...</div>
   <video id="video" width="400" height="300" autoplay muted playsinline></video>
@@ -50,6 +47,7 @@
 
 <div id="myModal" class="modal"><div class="modal-content"><div id="modalHeader" class="modal-header" style="color:#43a047">✅ SUKSES!</div><div id="modalBody" class="modal-body"></div><button class="modal-btn" onclick="tutupModal()">OKE</button></div></div>
 
+<!-- SUARA BEEP -->
 <audio id="beepMasuk" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"></audio>
 <audio id="beepPulang" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
@@ -61,16 +59,15 @@ const LOKASI_TOKO = {lat: -6.8881856, lng: 112.4565244}
 const RADIUS = 100
 let bolehAbsen = false; let aiSiap = false; let labeledDescriptors = [];
 let dataKaryawan = []; let absenHariIni = []; let lagiProses = false;
-let deferredPrompt; // BUAT PWA
+let deferredPrompt;
 
-// KODE PWA FIX V5.3
+// KODE PWA TOMBOL INSTALL
 const btnInstall = document.getElementById('btnInstallManual');
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  btnInstall.style.display = 'block'; // TAMPILKAN TOMBOL
+  btnInstall.style.display = 'block';
 });
-
 btnInstall.addEventListener('click', async () => {
   if(!deferredPrompt) return;
   deferredPrompt.prompt();
@@ -78,8 +75,6 @@ btnInstall.addEventListener('click', async () => {
   if(outcome === 'accepted'){ btnInstall.style.display = 'none'; }
   deferredPrompt = null;
 });
-
-// Nek wes di install, sembunyikan tombol
 window.addEventListener('appinstalled', () => { btnInstall.style.display = 'none'; });
 
 // DAFTARKAN SERVICE WORKER
@@ -87,11 +82,17 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
 
-// KODE LAMA MU TETEP
 navigator.mediaDevices.getUserMedia({video: {width: 400, height: 300, facingMode: "user"}}).then(s => {document.getElementById('video').srcObject = s;})
 function showModal(judul, isi){document.getElementById('modalHeader').innerHTML = judul;document.getElementById('modalBody').innerHTML = isi;document.getElementById('myModal').style.display = 'flex';}
 function tutupModal(){document.getElementById('myModal').style.display = 'none';}
-function ngomong(teks){ const speech = new SpeechSynthesisUtterance(teks); speech.lang = 'id-ID'; speech.rate = 1.1; window.speechSynthesis.speak(speech); }
+
+// FUNGSI SUARA
+function ngomong(teks){
+  const speech = new SpeechSynthesisUtterance(teks);
+  speech.lang = 'id-ID';
+  speech.rate = 1.1;
+  window.speechSynthesis.speak(speech);
+}
 
 Promise.all([
   faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'),
@@ -121,10 +122,12 @@ async function mulaiDeteksiWajah(){
   setInterval(async () => {
     if(!aiSiap ||!bolehAbsen || lagiProses) return;
     lagiProses = true;
+
     const detections = await faceapi.detectSingleFace(document.getElementById('video')).withFaceLandmarks().withFaceDescriptor();
     if(detections){
       const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
       const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
+
       if(bestMatch.label!== 'unknown'){
         const karyawan = dataKaryawan.find(k => k.nama === bestMatch.label);
         document.getElementById("namaDetek").innerHTML = `✅ ${bestMatch.label}`;
@@ -135,31 +138,41 @@ async function mulaiDeteksiWajah(){
     } else {
       document.getElementById("namaDetek").innerHTML = `⏳ Memindai Wajah...`;
     }
-    setTimeout(()=>{lagiProses = false}, 5000);
+    setTimeout(()=>{lagiProses = false}, 5000); // COOLDOWN 5 DETIK
   }, 2000)
 }
 
 async function prosesAbsenOtomatis(karyawan){
   const jamSekarang = new Date().getHours();
   const hariIni = new Date().toISOString().split('T')[0];
+
   const sudahMasuk = absenHariIni.find(a => a.karyawan_id == karyawan.karyawan_id && a.tipe == 'masuk');
   const sudahPulang = absenHariIni.find(a => a.karyawan_id == karyawan.karyawan_id && a.tipe == 'pulang');
+
   let tipe = '';
   if(!sudahMasuk && jamSekarang >= 5 && jamSekarang <= 11){ tipe = 'masuk'; }
   else if(sudahMasuk &&!sudahPulang && jamSekarang >= 12){ tipe = 'pulang'; }
   else { return; }
+
+  // ANIMASI + SUARA
   const namaEl = document.getElementById("namaDetek");
   namaEl.classList.add('sukses');
+
   if(tipe === 'masuk'){ document.getElementById('beepMasuk').play(); ngomong(`Selamat Datang ${karyawan.nama}`) }
   else { document.getElementById('beepPulang').play(); ngomong(`Selamat Pulang ${karyawan.nama}`) }
+
   setTimeout(()=>{namaEl.classList.remove('sukses')}, 1000);
+
+  // SIMPAN KE DB
   const canvas = document.createElement('canvas'); canvas.width = 400;canvas.height = 300;
   canvas.getContext('2d').drawImage(document.getElementById('video'), 0, 0, 400, 300);
   const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.5));
   const fileName = `${karyawan.nama}_${tipe}_${Date.now()}.jpg`;
   await db.storage.from('absen-foto').upload(fileName, blob);
   const fotoUrl = `${SUPABASE_URL}/storage/v1/object/public/absen-foto/${fileName}`
+
   await db.from('absensi').insert([{karyawan_id: karyawan.karyawan_id,nama: karyawan.nama,tipe: tipe,jam: new Date(),foto_url: fotoUrl}])
+
   showModal(`✅ ABSEN ${tipe.toUpperCase()} BERHASIL`, `Nama: <b>${karyawan.nama}</b><br>Jam: <b>${new Date().toLocaleTimeString('id-ID')}</b>`);
   loadRiwayat();
 }
