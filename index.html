@@ -5,7 +5,7 @@
 <title>Absen SARAHmart Anti Titip V2</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script> <!-- LINK DIGANTI -->
 <style>
   body{font-family:'Segoe UI',sans-serif;background:#f0fff4;text-align:center;padding:20px;margin:0}
   .card{background:white;border:3px solid #00c853;border-radius:16px;padding:20px;max-width:400px;margin:10px auto;box-shadow:0 4px 10px rgba(0,0,0,0.1)}
@@ -50,16 +50,26 @@ navigator.mediaDevices.getUserMedia({video: {width: 400, height: 300, facingMode
 .then(s => {document.getElementById('video').srcObject = s;})
 .catch(err => {document.getElementById("status").innerHTML = `❌ Kamera Gagal: ${err.message}`});
 
-// 2. LOAD AI WAJAH - FITUR BARU ANTI TITIP
+// 2. LOAD AI WAJAH - LINK DIGANTI BEN GAK STUCK
 Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/')
+  faceapi.nets.tinyFaceDetector.loadFromUri('https://unpkg.com/face-api.js@0.22.2/weights/') // LINK BARU
 ]).then(() => {
   aiSiap = true; 
   document.getElementById("status").innerHTML = "✅ AI Siap. Cek Lokasi...";
-  cekGPS(); // PENTING: GPS dicek sakwise AI siap
+  cekGPS(); // GPS dicek sakwise AI siap
+}).catch(err => {
+  document.getElementById("status").innerHTML = "❌ Gagal load AI. Cek internet. Refresh halaman.";
+  console.log(err)
 })
 
-// 3. CEK GPS - LOGIKA DIUBAH DADI MAKSIMAL 100M
+// TIMEOUT 10 DETIK BEN GAK STUCK SELAMANE
+setTimeout(() => {
+  if(!aiSiap) {
+    document.getElementById("status").innerHTML = "❌ Loading AI terlalu lama. Coba pakai WiFi / Refresh";
+  }
+}, 10000)
+
+// 3. CEK GPS - LOGIKA MAKSIMAL 100M
 function cekGPS(){
   navigator.geolocation.getCurrentPosition((pos) => {
     const jarak = hitungJarak(pos.coords.latitude, pos.coords.longitude, LOKASI_TOKO.lat, LOKASI_TOKO.lng)
@@ -87,11 +97,11 @@ async function cekWajah(){
   return true;
 }
 
-// 5. FUNGSI UTAMA ABSEN - FITUR LAMA AMAN + TAMBAH CEK WAJAH
+// 5. FUNGSI UTAMA ABSEN - FITUR LAMA AMAN
 async function mulaiAbsen(tipe){
   if(!bolehAbsen) return alert("Anda di luar area toko! Maksimal 100m dari SARAHmart")
   
-  const wajahValid = await cekWajah(); // CEK WAJAH DULU SEBELUM UPLOAD
+  const wajahValid = await cekWajah(); 
   if(!wajahValid) return;
 
   document.getElementById("loading").style.display = 'block';
@@ -108,7 +118,6 @@ async function mulaiAbsen(tipe){
   const namaKaryawan = document.getElementById("karyawan").options[document.getElementById("karyawan").selectedIndex].text;
   const fileName = `${namaKaryawan}_${tipe}_${Date.now()}.jpg`;
   
-  // UPLOAD FOTO KE SUPABASE STORAGE - FITUR LAMA AMAN
   const {data: uploadData, error: uploadError} = await db.storage.from('absen-foto').upload(fileName, blob, {upsert: true})
   if(uploadError){
     document.getElementById("loading").style.display = 'none';
@@ -123,7 +132,6 @@ async function mulaiAbsen(tipe){
   const karyawan_id = document.getElementById("karyawan").value;
   const jam = new Date();
   
-  // SIMPAN KE DATABASE - FITUR LAMA AMAN
   const {error} = await db.from('absensi').insert([{karyawan_id: karyawan_id,nama: namaKaryawan,tipe: tipe,jam: jam,foto_url: fotoUrl}])
   document.getElementById("loading").style.display = 'none';
   
