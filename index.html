@@ -13,8 +13,8 @@
   h3{margin-top:0}
   select{padding:8px 12px;font-size:16px;border-radius:8px;border:2px solid #00c853}
   button{padding:14px 24px;border:none;border-radius:10px;background:gray;color:white;font-weight:bold;font-size:16px;margin:8px;width:90%;cursor:not-allowed}
-  button.aktif{background:#d32f2f;cursor:pointer} /* Abang ben sangar */
-  button.aktif.hijau{background:#00c853}
+  button.aktif{background:#d32f2f;cursor:pointer} /* Abang */
+  button.aktif.hijau{background:#00c853} /* Ijo gawe masuk */
   video, canvas{width:100%;border-radius:10px;margin-top:10px;border:2px solid #00c853;background:#000}
   #status{font-weight:bold;margin-top:10px}
   #loading{display:none;color:#1976d2;font-weight:bold}
@@ -41,7 +41,7 @@ const SUPABASE_URL = 'https://bnamrfxiuxpiotrwvami.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_mPpOISFUgp2Q3N2Q4EWEfA__AuQ9agB'
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
 const LOKASI_TOKO = {lat: -6.8881856, lng: 112.4565244} 
-const RADIUS = 100 
+const RADIUS = 100 // 0m - 100m OLEH
 let bolehAbsen = false;
 let aiSiap = false;
 
@@ -54,12 +54,10 @@ Promise.all([
   faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/')
 ]).then(() => {aiSiap = true; document.getElementById("status").innerHTML = "✅ AI Siap. Cek Lokasi..."})
 
-// GANTI BAGIAN CEK GPS E KABEH DADI IKI
+// 3. CEK GPS - IKI SING DIUBAH DADI MAKSIMAL 100M
 navigator.geolocation.getCurrentPosition((pos) => {
   const jarak = hitungJarak(pos.coords.latitude, pos.coords.longitude, LOKASI_TOKO.lat, LOKASI_TOKO.lng)
-  
-  // IKI SING DIUBAH: <= 100 berarti 0m - 100m oleh
-  if(jarak <= RADIUS && aiSiap){ 
+  if(jarak <= RADIUS && aiSiap){
     bolehAbsen = true;
     document.getElementById("status").innerHTML = `✅ Di area toko ${jarak.toFixed(0)}m. Silahkan Absen`;
     document.getElementById("btnMasuk").classList.add('aktif','hijau');
@@ -67,10 +65,10 @@ navigator.geolocation.getCurrentPosition((pos) => {
     document.getElementById("btnMasuk").disabled = false;
     document.getElementById("btnPulang").disabled = false
   } else {
-    // PESAN ERROR E JUGA DIUBAH
     document.getElementById("status").innerHTML = `❌ Anda ${jarak.toFixed(0)}m dari toko. Maksimal 100m`
   }
 }, (err) => {document.getElementById("status").innerHTML = `❌ GPS Gagal: ${err.message}. Aktifkan GPS`})
+
 // 4. FUNGSI CEK WAJAH BARU
 async function cekWajah(){
   const video = document.getElementById('video');
@@ -83,10 +81,9 @@ async function cekWajah(){
 }
 
 async function mulaiAbsen(tipe){
-  if(!bolehAbsen) return alert("Anda di luar area toko! Minimal 100m dari SARAHmart")
+  if(!bolehAbsen) return alert("Anda di luar area toko! Maksimal 100m dari SARAHmart")
   
-  // CEK WAJAH DULU SEBELUM UPLOAD
-  const wajahValid = await cekWajah();
+  const wajahValid = await cekWajah(); // CEK WAJAH DULU
   if(!wajahValid) return;
 
   document.getElementById("loading").style.display = 'block';
