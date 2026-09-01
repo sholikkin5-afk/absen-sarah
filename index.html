@@ -92,15 +92,19 @@ async function loadLabeledImages(){
 
 function cekGPS(){navigator.geolocation.getCurrentPosition((pos) => {const jarak = hitungJarak(pos.coords.latitude, pos.coords.longitude, LOKASI_TOKO.lat, LOKASI_TOKO.lng);if(jarak <= RADIUS && aiSiap){bolehAbsen = true;document.getElementById("status").innerHTML = `✅ Di area toko ${jarak.toFixed(0)}m. Silahkan Absen`;document.getElementById("status").className = "ok";document.getElementById("btnMasuk").classList.add('aktif','hijau');document.getElementById("btnPulang").classList.add('aktif');document.getElementById("btnMasuk").disabled = false;document.getElementById("btnPulang").disabled = false}else{document.getElementById("status").innerHTML = `❌ Anda ${jarak.toFixed(0)}m dari toko. Maksimal 100m`;document.getElementById("status").className = "err";}}, (err) => {showModal('err','❌ GPS GAGAL','Aktifkan GPS & Izin Lokasi')})}
 
-// 1. DAFTAR WAJAH PERTAMA KALI
+// GANTI BAGIAN daftarWajah() IKI AE
 async function daftarWajah(){
   const nama = document.getElementById("karyawan").options[document.getElementById("karyawan").selectedIndex].text;
   const detections = await faceapi.detectSingleFace(document.getElementById('video'), new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
   if(!detections) return showModal('err','❌ GAGAL','Wajah tidak terdeteksi saat daftar');
   
-  const descriptor = Array.from(detections.descriptor); // UBAH JADI ARRAY BIASA
+  const descriptor = Array.from(detections.descriptor); 
   const {error} = await db.from('karyawan_wajah').upsert([{karyawan_id: document.getElementById("karyawan").value, nama: nama, descriptor: [descriptor]}]);
-  if(error) return showModal('err','❌ GAGAL SIMPAN','Gagal simpan data wajah');
+  
+  if(error){ 
+    console.log(error); // IKI PENTING KANGGO DEBUG
+    return showModal('err','❌ GAGAL SIMPAN DB',error.message + "\n\nCek RLS Supabase mu!") 
+  }
   await loadLabeledImages();
   showModal('ok','✅ BERHASIL','Data wajah ' + nama + ' sudah tersimpan. Sekarang bisa absen');
 }
