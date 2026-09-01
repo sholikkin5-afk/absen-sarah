@@ -16,14 +16,10 @@
   video, canvas{width:100%;border-radius:10px;margin-top:10px;border:2px solid #00c853;background:#000}
   #status{font-weight:bold;margin-top:10px}
   #loading{display:none;color:#1976d2;font-weight:bold}
-  .ok{color:#00c853}
-  .gagal{color:red}
 </style>
 </head>
 <body>
-
 <h2>ABSEN SARAHmart</h2>
-
 <div class="card">
   <h3>Pilih Nama</h3>
   <select id="karyawan">
@@ -31,130 +27,42 @@
     <option value="2">Nisa</option>
     <option value="3">Elva</option>
   </select> <br>
-  
   <video id="video" width="400" height="300" autoplay muted playsinline></video>
   <canvas id="canvas" style="display:none"></canvas>
   <p id="status">Mengecek lokasi + Menyalakan kamera...</p>
   <p id="loading">⏳ Mengupload data, tunggu...</p>
-  
   <button id="btnMasuk" onclick="mulaiAbsen('masuk')" disabled>📸 Absen Masuk</button>
   <button id="btnPulang" onclick="mulaiAbsen('pulang')" disabled>📸 Absen Pulang</button>
 </div>
-
 <script>
 const SUPABASE_URL = 'https://bnamrfxiuxpiotrwvami.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_mPpOISFUgp2Q3N2Q4EWEfA__AuQ9agB'
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
-
 const LOKASI_TOKO = {lat: -6.8881856, lng: 112.4565244} 
 const RADIUS = 100 
 let bolehAbsen = false;
-
-// 1. NYALAKAN KAMERA LANGSUNG
 navigator.mediaDevices.getUserMedia({video: {width: 400, height: 300, facingMode: "user"}})
-.then(s => {
-    document.getElementById('video').srcObject = s;
-    document.getElementById("status").innerHTML += "<br>✅ Kamera Aktif"
-})
-.catch((err) => {
-    document.getElementById("status").innerHTML = "❌ Kamera ditolak: " + err.message
-})
-
-// 2. CEK LOKASI
+.then(s => {document.getElementById('video').srcObject = s;document.getElementById("status").innerHTML = "✅ Kamera Aktif. Cek Lokasi..."})
+.catch((err) => {document.getElementById("status").innerHTML = "❌ Kamera ditolak: " + err.message})
 navigator.geolocation.getCurrentPosition((pos) => {
   const jarak = hitungJarak(pos.coords.latitude, pos.coords.longitude, LOKASI_TOKO.lat, LOKASI_TOKO.lng)
-  if(jarak <= RADIUS){
-    bolehAbsen = true;
-    document.getElementById("status").innerHTML = `✅ Di area toko. Jarak ${jarak.toFixed(0)}m`
-    document.getElementById("btnMasuk").classList.add('aktif')
-    document.getElementById("btnPulang").classList.add('aktif')
-    document.getElementById("btnMasuk").disabled = false
-    document.getElementById("btnPulang").disabled = false
-  } else {
-    document.getElementById("status").innerHTML = `❌ Anda ${jarak.toFixed(0)}m dari toko. Minimal 100m`
-  }
-}, (err) => {
-  document.getElementById("status").innerHTML = `❌ GPS Gagal: ${err.message}. Aktifkan GPS`
-})
-
-// 3. FUNGSI UTAMA ABSEN
+  if(jarak <= RADIUS){bolehAbsen = true;document.getElementById("status").innerHTML = `✅ Di area toko. Jarak ${jarak.toFixed(0)}m`;document.getElementById("btnMasuk").classList.add('aktif');document.getElementById("btnPulang").classList.add('aktif');document.getElementById("btnMasuk").disabled = false;document.getElementById("btnPulang").disabled = false} else {document.getElementById("status").innerHTML = `❌ Anda ${jarak.toFixed(0)}m dari toko. Minimal 100m`}}, (err) => {document.getElementById("status").innerHTML = `❌ GPS Gagal: ${err.message}. Aktifkan GPS`})
 async function mulaiAbsen(tipe){
   if(!bolehAbsen) return alert("Anda di luar area toko! Minimal 100m dari SARAHmart")
-  
-  document.getElementById("loading").style.display = 'block';
-  document.getElementById("btnMasuk").disabled = true;
-  document.getElementById("btnPulang").disabled = true;
-  document.getElementById("btnMasuk").classList.remove('aktif')
-  document.getElementById("btnPulang").classList.remove('aktif')
-  
-  // AMBIL FOTO DARI VIDEO
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  canvas.width = 400;
-  canvas.height = 300;
-  canvas.getContext('2d').drawImage(video, 0, 0, 400, 300);
-  
-  // KOMPRES FOTO BEN ENTENG WALAUPUN JARINGAN LEMOT
+  document.getElementById("loading").style.display = 'block';document.getElementById("btnMasuk").disabled = true;document.getElementById("btnPulang").disabled = true;document.getElementById("btnMasuk").classList.remove('aktif');document.getElementById("btnPulang").classList.remove('aktif')
+  const video = document.getElementById('video');const canvas = document.getElementById('canvas');canvas.width = 400;canvas.height = 300;canvas.getContext('2d').drawImage(video, 0, 0, 400, 300);
   const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.4));
   const namaKaryawan = document.getElementById("karyawan").options[document.getElementById("karyawan").selectedIndex].text;
   const fileName = `${namaKaryawan}_${tipe}_${Date.now()}.jpg`;
-  
-  // UPLOAD FOTO KE STORAGE SUPABASE
-  const {data: uploadData, error: uploadError} = await db.storage
-   .from('absen-foto')
-   .upload(fileName, blob, {upsert: true})
-    
-  if(uploadError){
-    document.getElementById("loading").style.display = 'none';
-    document.getElementById("btnMasuk").disabled = false;
-    document.getElementById("btnPulang").disabled = false;
-    document.getElementById("btnMasuk").classList.add('aktif')
-    document.getElementById("btnPulang").classList.add('aktif')
-    return alert("Gagal upload foto: " + uploadError.message)
-  }
-  
+  const {data: uploadData, error: uploadError} = await db.storage.from('absen-foto').upload(fileName, blob, {upsert: true})
+  if(uploadError){document.getElementById("loading").style.display = 'none';document.getElementById("btnMasuk").disabled = false;document.getElementById("btnPulang").disabled = false;document.getElementById("btnMasuk").classList.add('aktif');document.getElementById("btnPulang").classList.add('aktif');return alert("Gagal upload foto: " + uploadError.message)}
   const fotoUrl = `${SUPABASE_URL}/storage/v1/object/public/absen-foto/${fileName}`
-
-  // SIMPAN KE TABEL ABSENSI
-  const karyawan_id = document.getElementById("karyawan").value;
-  const jam = new Date();
-  
-  const {error} = await db.from('absensi').insert([{
-    karyawan_id: karyawan_id,
-    nama: namaKaryawan,
-    tipe: tipe,
-    jam: jam,
-    foto_url: fotoUrl
-  }])
-  
+  const karyawan_id = document.getElementById("karyawan").value;const jam = new Date();
+  const {error} = await db.from('absensi').insert([{karyawan_id: karyawan_id,nama: namaKaryawan,tipe: tipe,jam: jam,foto_url: fotoUrl}])
   document.getElementById("loading").style.display = 'none';
-  
-  if(!error){
-    alert(`✅ Absen ${tipe.toUpperCase()} Berhasil!\nNama: ${namaKaryawan}\nJam: ${jam.toLocaleTimeString('id-ID')}`)
-    document.getElementById("btnMasuk").disabled = false;
-    document.getElementById("btnPulang").disabled = false;
-    document.getElementById("btnMasuk").classList.add('aktif')
-    document.getElementById("btnPulang").classList.add('aktif')
-  } else {
-    alert("Gagal simpan ke database: " + error.message)
-    document.getElementById("btnMasuk").disabled = false;
-    document.getElementById("btnPulang").disabled = false;
-    document.getElementById("btnMasuk").classList.add('aktif')
-    document.getElementById("btnPulang").classList.add('aktif')
-  }
+  if(!error){alert(`✅ Absen ${tipe.toUpperCase()} Berhasil!\nNama: ${namaKaryawan}\nJam: ${jam.toLocaleTimeString('id-ID')}`);document.getElementById("btnMasuk").disabled = false;document.getElementById("btnPulang").disabled = false;document.getElementById("btnMasuk").classList.add('aktif');document.getElementById("btnPulang").classList.add('aktif')} else {alert("Gagal simpan ke database: " + error.message);document.getElementById("btnMasuk").disabled = false;document.getElementById("btnPulang").disabled = false;document.getElementById("btnMasuk").classList.add('aktif');document.getElementById("btnPulang").classList.add('aktif')}
 }
-
-// 4. RUMUS HITUNG JARAK GPS
-function hitungJarak(lat1, lon1, lat2, lon2){
-  const R = 6371e3; 
-  const φ1 = lat1 * Math.PI/180; 
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180; 
-  const Δλ = (lon2-lon1) * Math.PI/180;
-  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
+function hitungJarak(lat1, lon1, lat2, lon2){const R = 6371e3; const φ1 = lat1 * Math.PI/180; const φ2 = lat2 * Math.PI/180;const Δφ = (lat2-lat1) * Math.PI/180; const Δλ = (lon2-lon1) * Math.PI/180;const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));return R * c;}
 </script>
 </body>
 </html>
