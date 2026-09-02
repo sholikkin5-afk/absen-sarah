@@ -2,186 +2,254 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Absen SARAHmart AUTO V5.4 PWA</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#203a43">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Absen SARAH">
-<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1048/1048946.png">
-<link rel="manifest" href="manifest.json">
-
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Auto Absen SARAHmart</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js"></script>
 <style>
-  body{font-family:'Poppins',sans-serif;background:linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);text-align:center;padding:20px;margin:0;min-height:100vh;color:white}
-.card{background:rgba(255,255,255,0.1);backdrop-filter:blur(15px);border:1px solid rgba(255,255,255,0.2);border-radius:24px;padding:25px;max-width:420px;margin:10px auto}
-  h2{font-weight:800;margin-bottom:5px}.subtitle{font-size:12px;opacity:0.8}
-.nama-detek{font-size:28px;font-weight:800;color:#66ff66;margin:15px 0;min-height:50px;text-shadow:0 0 10px #66ff66;transition:0.3s}
-.nama-detek.sukses{transform:scale(1.1);color:#fff}
-  video{width:100%;border-radius:20px;margin-top:15px;border:4px solid #66ff66;box-shadow:0 0 20px rgba(102,255,102,0.5)}
-  #status{font-weight:bold;margin-top:15px;padding:12px;border-radius:12px;font-size:14px;background:rgba(0,0,0,0.3)}
-  #status.ok{color:#66ff66} #status.err{color:#ff6666}
-.riwayat{margin-top:20px;font-size:12px;text-align:left;background:rgba(0,0,0,0.2);padding:10px;border-radius:10px;max-height:150px;overflow-y:auto}
-.modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center}
-.modal-content{background:white;color:#333;padding:25px;border-radius:20px;width:90%;max-width:350px;text-align:center;animation:pop 0.3s}
- @keyframes pop{0%{transform:scale(0.8)}100%{transform:scale(1)}}
-.modal-header{font-size:22px;font-weight:800;margin-bottom:10px}
-.modal-body{font-size:14px;line-height:1.6;margin-bottom:20px}
-.modal-btn{background:#56ab2f;color:white;border:none;padding:12px 30px;border-radius:12px;font-weight:bold;font-size:16px;cursor:pointer}
-#btnInstallManual{display:none;position:fixed;top:10px;right:10px;z-index:9999;background:#00c853;color:white;border:none;padding:8px 15px;border-radius:20px;font-weight:bold;box-shadow:0 4px 10px rgba(0,0,0,0.3)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;font-family:Arial,sans-serif;background:linear-gradient(145deg,#fff8d8,#fff,#fff3c4);color:#333;padding:10px}
+.app{width:100%;max-width:480px;margin:auto}
+.header{background:linear-gradient(135deg,#ffd000,#ff9800);border-radius:22px;padding:16px;text-align:center;color:#fff;box-shadow:0 7px 20px #e9a50055;margin-bottom:10px}
+.logo{width:62px;height:62px;margin:auto;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 4px 12px #0002}
+.header h1{margin-top:7px;font-size:23px}.header p{font-size:12px;margin-top:3px}
+.clock-card,.result-card,.history,.stat{background:#fff;border-radius:18px;box-shadow:0 4px 15px #0000000d}
+.clock-card{text-align:center;padding:12px;margin-bottom:10px}.clock{font-size:29px;font-weight:bold;color:#ed9200}.date{font-size:12px;color:#777;margin-top:3px}
+.camera-card{background:#171717;border-radius:21px;padding:10px;box-shadow:0 7px 20px #0004}.camera-title{color:#fff;font-weight:bold;font-size:14px;padding:3px 0 8px}.video-wrap{position:relative}
+video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:15px;background:#000;border:3px solid #555}
+.scan-line{position:absolute;left:5%;right:5%;height:3px;background:#ffe000;box-shadow:0 0 12px #ffe000;top:10%;animation:scan 2.2s infinite;border-radius:5px}
+@keyframes scan{0%{top:10%}50%{top:88%}100%{top:10%}}
+.camera-status{margin-top:8px;padding:9px;border-radius:10px;background:#282828;color:#ddd;text-align:center;font-size:12px}
+.result-card{margin-top:10px;padding:15px;text-align:center}.result-icon{width:58px;height:58px;margin:auto;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:27px}
+.result-name{font-size:21px;font-weight:bold;margin-top:8px}.result-status{display:inline-block;margin-top:7px;padding:6px 13px;border-radius:20px;background:#eee;color:#666;font-size:12px;font-weight:bold}
+.success{background:#e7fff0!important;color:#139447!important}.warning{background:#fff3d0!important;color:#b87500!important}.error{background:#ffe8e8!important;color:#d52222!important}.info{background:#e8f2ff!important;color:#2671c9!important}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.stat{text-align:center;padding:12px}.stat-number{font-size:23px;font-weight:bold;color:#ed9200}.stat-label{font-size:11px;color:#777;margin-top:3px}
+.history{margin-top:10px;padding:14px}.history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.history-header h3{font-size:16px}.refresh{border:0;background:#fff1bf;color:#a66b00;border-radius:9px;padding:6px 9px}
+.item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #eee}.item:last-child{border:0}.avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#ffd000,#ff9800);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold}.item-info{flex:1;text-align:left}.item-name{font-size:13px;font-weight:bold}.item-time{font-size:10px;color:#888;margin-top:2px}.badge{font-size:9px;background:#e7fff0;color:#159447;padding:5px 7px;border-radius:15px}.empty{text-align:center;color:#999;padding:18px 5px;font-size:12px}
+.footer{text-align:center;font-size:10px;color:#999;padding:15px 0 5px}
+.loading{position:fixed;inset:0;background:#000b;z-index:99;display:flex;align-items:center;justify-content:center}.loading-box{background:#fff;padding:23px;border-radius:18px;text-align:center;width:80%;max-width:280px}.spinner{width:42px;height:42px;border:5px solid #eee;border-top-color:#ffae00;border-radius:50%;animation:spin 1s linear infinite;margin:auto}@keyframes spin{to{transform:rotate(360deg)}}.hidden{display:none!important}
 </style>
 </head>
 <body>
-
-<button id="btnInstallManual">📲 Install App</button>
-
-<h2>🤖 ABSEN AUTO SARAHmart</h2>
-<p class="subtitle">Tinggal Ngadep Kamera - Auto Absen + Suara</p>
-<div class="card">
-  <div class="nama-detek" id="namaDetek">⏳ Memindai Wajah...</div>
-  <video id="video" width="400" height="300" autoplay muted playsinline></video>
-  <p id="status" class="err">⏳ Memuat AI + GPS...</p>
-  <div class="riwayat" id="riwayatHariIni">Memuat riwayat hari ini...</div>
+<div id="loading" class="loading"><div class="loading-box"><div class="spinner"></div><h3 style="margin-top:13px">Menyiapkan Sistem</h3><p id="loadingText" style="font-size:11px;color:#777;margin-top:5px">Memuat AI...</p></div></div>
+<div class="app">
+<div class="header"><div class="logo">🛒</div><h1>SARAHmart</h1><p>🤖 AUTO ABSEN WAJAH + LIVENESS</p></div>
+<div class="clock-card"><div id="clock" class="clock">00:00:00</div><div id="date" class="date">Memuat tanggal...</div></div>
+<div class="camera-card"><div class="camera-title">📷 Kamera Absensi</div><div class="video-wrap"><video id="video" autoplay muted playsinline></video><div class="scan-line"></div></div><div id="cameraStatus" class="camera-status">⏳ Menyiapkan kamera...</div></div>
+<div class="result-card"><div id="resultIcon" class="result-icon">👤</div><div id="namaDetek" class="result-name">Menunggu wajah...</div><div id="resultStatus" class="result-status">Arahkan wajah ke kamera</div></div>
+<div class="stats"><div class="stat"><div id="totalKaryawan" class="stat-number">0</div><div class="stat-label">Karyawan Terdaftar</div></div><div class="stat"><div id="totalAbsen" class="stat-number">0</div><div class="stat-label">Absen Hari Ini</div></div></div>
+<div class="history"><div class="history-header"><h3>📋 Riwayat Hari Ini</h3><button class="refresh" onclick="loadHistory()">↻ Refresh</button></div><div id="historyList"><div class="empty">Belum ada absensi hari ini</div></div></div>
+<div class="footer">SARAHmart • Sistem Auto Absen</div>
 </div>
-
-<div id="myModal" class="modal"><div class="modal-content"><div id="modalHeader" class="modal-header" style="color:#43a047">✅ SUKSES!</div><div id="modalBody" class="modal-body"></div><button class="modal-btn" onclick="tutupModal()">OKE</button></div></div>
-
-<!-- SUARA BEEP -->
-<audio id="beepMasuk" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"></audio>
-<audio id="beepPulang" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-
 <script>
-const SUPABASE_URL = 'https://fbxfoorzeojsqnzcmvic.supabase.co'
-const SUPABASE_ANON_KEY = 'sb_publishable_Xg3DLbSsRFTsU5ZjxIylkA_JP6pUpSK'
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-const LOKASI_TOKO = {lat: -6.8881856, lng: 112.4565244}
-const RADIUS = 100
-let bolehAbsen = false; let aiSiap = false; let labeledDescriptors = [];
-let dataKaryawan = []; let absenHariIni = []; let lagiProses = false;
-let deferredPrompt;
+const db=supabase.createClient('https://fbxfoorzeojsqnzcmvic.supabase.co','sb_publishable_Xg3DLbSsRFTsU5ZjxIylkA_JP6pUpSK');
+const SUPABASE_URL = 'https://fbxfoorzeojsqnzcmvic.supabase.co';
+const video=document.getElementById('video');
+let labeledDescriptors=[],dataKaryawan=[],isScanning=false,lastDetectedName='',lastAttendanceTime=0;
+let blinkClosed=false,blinkStart=0,livenessName='',livenessReady=false;
+const COOLDOWN=10000; // 10 detik
 
-// KODE PWA TOMBOL INSTALL
-const btnInstall = document.getElementById('btnInstallManual');
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  btnInstall.style.display = 'block';
-});
-btnInstall.addEventListener('click', async () => {
-  if(!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  if(outcome === 'accepted'){ btnInstall.style.display = 'none'; }
-  deferredPrompt = null;
-});
-window.addEventListener('appinstalled', () => { btnInstall.style.display = 'none'; });
+function updateClock(){
+ const n=new Date();
+ document.getElementById('clock').textContent=n.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ document.getElementById('date').textContent=n.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+setInterval(updateClock,1000);updateClock();
 
-// DAFTARKAN SERVICE WORKER
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
+function setLoading(t){document.getElementById('loadingText').textContent=t}
+
+function setResult(name,status,icon,text){
+ document.getElementById('namaDetek').textContent=name;
+ document.getElementById('resultIcon').textContent=icon;
+ const e=document.getElementById('resultStatus');
+ e.className='result-status '+status;e.textContent=text;
 }
 
-navigator.mediaDevices.getUserMedia({video: {width: 400, height: 300, facingMode: "user"}}).then(s => {document.getElementById('video').srcObject = s;})
-function showModal(judul, isi){document.getElementById('modalHeader').innerHTML = judul;document.getElementById('modalBody').innerHTML = isi;document.getElementById('myModal').style.display = 'flex';}
-function tutupModal(){document.getElementById('myModal').style.display = 'none';}
-
-// FUNGSI SUARA
-function ngomong(teks){
-  const speech = new SpeechSynthesisUtterance(teks);
-  speech.lang = 'id-ID';
-  speech.rate = 1.1;
-  window.speechSynthesis.speak(speech);
+async function startCamera(){
+ try{
+  const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+  video.srcObject=s;await video.play();
+  document.getElementById('cameraStatus').textContent='🟢 Kamera aktif • Arahkan wajah ke kamera';
+  return true;
+ }catch(e){
+  document.getElementById('cameraStatus').textContent='🔴 Kamera tidak dapat digunakan';
+  setResult('Kamera gagal','error','📷','✕ Izinkan akses kamera');
+  return false;
+ }
 }
 
-Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'),
-  faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'),
-  faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/')
-]).then(async () => {
-  const {data} = await db.from('karyawan_wajah').select('*');
-  dataKaryawan = data;
-
-  // PERBAIKAN KUNCI DISINI: gawe new Float32Array langsung, tanpa.map
-  labeledDescriptors = await Promise.all(data.map(async k => {
-    return new faceapi.LabeledFaceDescriptors(k.nama, [new Float32Array(k.descriptor)])
-  }))
-
-  aiSiap = true; cekGPS(); mulaiDeteksiWajah(); loadRiwayat();
-})
-
-function cekGPS(){navigator.geolocation.getCurrentPosition((pos) => {const jarak = hitungJarak(pos.coords.latitude, pos.coords.longitude, LOKASI_TOKO.lat, LOKASI_TOKO.lng);if(jarak <= RADIUS && aiSiap){bolehAbsen = true;document.getElementById("status").innerHTML = `✅ Di area toko ${jarak.toFixed(0)}m`;document.getElementById("status").className = "ok";}else{document.getElementById("status").innerHTML = `❌ Diluar area ${jarak.toFixed(0)}m`;document.getElementById("status").className = "err";}}, (err) => {document.getElementById("status").innerHTML = `❌ GPS Mati`})}
-
-async function loadRiwayat(){
-  const hariIni = new Date().toISOString().split('T')[0];
-  const {data} = await db.from('absensi').select('*').gte('jam', hariIni).order('jam', {ascending: false});
-  absenHariIni = data || [];
-  let html = '<b>📋 Absen Hari Ini:</b><br>';
-  if(absenHariIni.length > 0){
-    absenHariIni.forEach(a => { html += `${a.nama} - ${a.tipe} jam ${new Date(a.jam).toLocaleTimeString('id-ID')}<br>` })
-  } else { html += 'Belum ada yang absen' }
-  document.getElementById("riwayatHariIni").innerHTML = html;
+async function loadAI(){
+ const u='https://justadudewhohacks.github.io/face-api.js/models';
+ setLoading('Memuat AI Face Detector...');
+ await faceapi.nets.tinyFaceDetector.loadFromUri(u);
+ setLoading('Memuat Face Landmark...');
+ await faceapi.nets.faceLandmark68Net.loadFromUri(u);
+ setLoading('Memuat Face Recognition...');
+ await faceapi.nets.faceRecognitionNet.loadFromUri(u);
 }
 
-async function mulaiDeteksiWajah(){
-  setInterval(async () => {
-    if(!aiSiap ||!bolehAbsen || lagiProses) return;
-    lagiProses = true;
-
-    const detections = await faceapi.detectSingleFace(document.getElementById('video')).withFaceLandmarks().withFaceDescriptor();
-    if(detections){
-      const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
-      const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
-
-      if(bestMatch.label!== 'unknown'){
-        const karyawan = dataKaryawan.find(k => k.nama === bestMatch.label);
-        document.getElementById("namaDetek").innerHTML = `✅ ${bestMatch.label}`;
-        await prosesAbsenOtomatis(karyawan);
-      } else {
-        document.getElementById("namaDetek").innerHTML = `❌ Wajah Tidak Dikenal`;
-      }
-    } else {
-      document.getElementById("namaDetek").innerHTML = `⏳ Memindai Wajah...`;
-    }
-    setTimeout(()=>{lagiProses = false}, 5000); // COOLDOWN 5 DETIK
-  }, 2000)
+async function loadFaces(){
+ setLoading('Mengambil data wajah...');
+ const {data,error}=await db.from('karyawan_wajah').select('*');
+ if(error)throw new Error('Database wajah: '+error.message);
+ if(!data||!data.length)throw new Error('Belum ada data wajah karyawan');
+ dataKaryawan = data; // SIMPAN DATA LENGKAP GO AMBIL ID
+ document.getElementById('totalKaryawan').textContent=data.length;
+ labeledDescriptors=data.map(k=>{
+  let d=k.descriptor;
+  if(typeof d==='string')d=JSON.parse(d);
+  return new faceapi.LabeledFaceDescriptors(k.nama,[new Float32Array(d)]);
+ });
 }
 
-async function prosesAbsenOtomatis(karyawan){
-  const jamSekarang = new Date().getHours();
-  const hariIni = new Date().toISOString().split('T')[0];
+function eyeRatio(points){
+ const a=dist(points[1],points[5]);
+ const b=dist(points[2],points[4]);
+ const c=dist(points[0],points[3]);
+ return (a+b)/(2*c);
+}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
 
-  const sudahMasuk = absenHariIni.find(a => a.karyawan_id == karyawan.karyawan_id && a.tipe == 'masuk');
-  const sudahPulang = absenHariIni.find(a => a.karyawan_id == karyawan.karyawan_id && a.tipe == 'pulang');
-
-  let tipe = '';
-  if(!sudahMasuk && jamSekarang >= 5 && jamSekarang <= 11){ tipe = 'masuk'; }
-  else if(sudahMasuk &&!sudahPulang && jamSekarang >= 12){ tipe = 'pulang'; }
-  else { return; }
-
-  // ANIMASI + SUARA
-  const namaEl = document.getElementById("namaDetek");
-  namaEl.classList.add('sukses');
-
-  if(tipe === 'masuk'){ document.getElementById('beepMasuk').play(); ngomong(`Selamat Datang ${karyawan.nama}`) }
-  else { document.getElementById('beepPulang').play(); ngomong(`Selamat Pulang ${karyawan.nama}`) }
-
-  setTimeout(()=>{namaEl.classList.remove('sukses')}, 1000);
-
-  // SIMPAN KE DB
-  const canvas = document.createElement('canvas'); canvas.width = 400;canvas.height = 300;
-  canvas.getContext('2d').drawImage(document.getElementById('video'), 0, 0, 400, 300);
-  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.5));
-  const fileName = `${karyawan.nama}_${tipe}_${Date.now()}.jpg`;
-  await db.storage.from('absen-foto').upload(fileName, blob);
-  const fotoUrl = `${SUPABASE_URL}/storage/v1/object/public/absen-foto/${fileName}`
-
-  await db.from('absensi').insert([{karyawan_id: karyawan.karyawan_id,nama: karyawan.nama,tipe: tipe,jam: new Date(),foto_url: fotoUrl}])
-
-  showModal(`✅ ABSEN ${tipe.toUpperCase()} BERHASIL`, `Nama: <b>${karyawan.nama}</b><br>Jam: <b>${new Date().toLocaleTimeString('id-ID')}</b>`);
-  loadRiwayat();
+function getEAR(landmarks){
+ const l=landmarks.getLeftEye();
+ const r=landmarks.getRightEye();
+ return (eyeRatio(l)+eyeRatio(r))/2;
 }
 
-function hitungJarak(lat1, lon1, lat2, lon2){const R = 6371e3; const φ1 = lat1 * Math.PI/180; const φ2 = lat2 * Math.PI/180; const Δφ = (lat2-lat1) * Math.PI/180; const Δλ = (lon2-lon1) * Math.PI/180; const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2; const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c;}
+function resetLiveness(){
+ blinkClosed=false;blinkStart=0;livenessReady=false;livenessName='';
+}
+
+// PERBAIKAN KUNCI: EAR 0.25 ben luwih gampang kedetek
+function checkBlink(landmarks,nama){
+ const ear=getEAR(landmarks);
+ if(livenessName!==nama){resetLiveness();livenessName=nama}
+
+ if(ear<0.25){ // DITURUNKAN DADI 0.25
+  if(!blinkClosed){blinkClosed=true;blinkStart=Date.now()}
+ }else if(blinkClosed){
+  const duration=Date.now()-blinkStart;
+  if(duration>=80&&duration<=1200)livenessReady=true; // 80ms - 1.2s
+  blinkClosed=false;
+ }
+ return livenessReady;
+}
+
+// CEK PAKAI karyawan_id + jam
+async function sudahAbsen(karyawan_id){
+ const today=new Date().toISOString().split('T')[0];
+ const {data,error}=await db.from('absensi').select('id').eq('karyawan_id',karyawan_id).gte('jam',today).limit(1);
+ if(error)throw error;
+ return data&&data.length>0;
+}
+
+async function simpanAbsen(nama){
+ const karyawan = dataKaryawan.find(k => k.nama === nama);
+ if(!karyawan) return;
+
+ const already=await sudahAbsen(karyawan.karyawan_id);
+ if(already){
+  setResult(nama,'warning','⚠️','⚠ Sudah absen hari ini');
+  lastAttendanceTime=Date.now();
+  return;
+ }
+
+ // AMBIL FOTO
+ const canvas = document.createElement('canvas');
+ canvas.width = 640;canvas.height = 480;
+ canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+ const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.5));
+ const fileName = `${nama}_${Date.now()}.jpg`;
+ await db.storage.from('absen-foto').upload(fileName, blob);
+ const fotoUrl = `${SUPABASE_URL}/storage/v1/object/public/absen-foto/${fileName}`
+
+ const {error}=await db.from('absensi').insert({
+   karyawan_id: karyawan.karyawan_id,
+   nama,
+   jam: new Date(), // TIMESTAMP LENGKAP
+   tipe: 'masuk',
+   foto_url: fotoUrl,
+   status: 'HADIR'
+ });
+ if(error){
+  console.error(error);
+  setResult(nama,'error','❌','✕ Gagal menyimpan absensi');
+  return;
+ }
+ setResult(nama,'success','✅','✓ ABSEN BERHASIL');
+ lastAttendanceTime=Date.now();
+ lastDetectedName=nama;
+ resetLiveness(); // RESET SETELAH SUKSES
+ await loadHistory();
+}
+
+async function scanFace(){
+ if(isScanning||!video.videoWidth)return;
+ isScanning=true;
+ try{
+  const d=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.5})).withFaceLandmarks().withFaceDescriptor();
+  if(!d){
+   resetLiveness();
+   setResult('Menunggu wajah...','','👤','Arahkan wajah ke kamera');
+   isScanning=false;return;
+  }
+  const matcher=new faceapi.FaceMatcher(labeledDescriptors,.50);
+  const match=matcher.findBestMatch(d.descriptor);
+  if(match.label==='unknown'){
+   resetLiveness();
+   setResult('Wajah tidak dikenali','error','❓','✕ Wajah tidak terdaftar');
+   isScanning=false;return;
+  }
+  const nama=match.label;
+  const blink=checkBlink(d.landmarks,nama);
+
+  if(!blink){
+   setResult(nama,'info','👁️',`👁️ Kedipkan mata - Akurasi: ${Math.round((1-match.distance)*100)}%`);
+   isScanning=false;return;
+  }
+
+  setResult(nama,'success','👋',`Liveness OK! Akurasi: ${Math.round((1-match.distance)*100)}%`);
+
+  const now=Date.now();
+  if(nama!==lastDetectedName||now-lastAttendanceTime>COOLDOWN)await simpanAbsen(nama);
+
+ }catch(e){console.error('Scan error:',e)}
+ isScanning=false;
+}
+
+async function loadHistory(){
+ const today=new Date().toISOString().split('T')[0];
+ const {data,error}=await db.from('absensi').select('*').gte('jam',today).order('jam',{ascending:false});
+ if(error){console.error(error);return}
+ document.getElementById('totalAbsen').textContent=data?data.length:0;
+ const list=document.getElementById('historyList');
+ if(!data||!data.length){list.innerHTML='<div class="empty">Belum ada absensi hari ini</div>';return}
+ list.innerHTML=data.map(x=>{
+  const initial=x.nama.trim().charAt(0).toUpperCase();
+  return `<div class="item"><div class="avatar">${initial}</div><div class="item-info"><div class="item-name">${escapeHTML(x.nama)}</div><div class="item-time">🕐 ${new Date(x.jam).toLocaleTimeString('id-ID')}</div></div><div class="badge">✓ ${x.tipe||'HADIR'}</div></div>`;
+ }).join('');
+}
+
+function escapeHTML(t){
+ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+async function init(){
+ try{
+  setLoading('Memuat sistem...');
+  await loadAI();
+  await loadFaces();
+  setLoading('Mengaktifkan kamera...');
+  if(!(await startCamera())){document.getElementById('loading').classList.add('hidden');return}
+  await loadHistory();
+  document.getElementById('loading').classList.add('hidden');
+  setInterval(scanFace,600);
+ }catch(e){
+  console.error(e);setLoading('❌ '+e.message);
+  setTimeout(()=>document.getElementById('loading').classList.add('hidden'),2500);
+ }
+}
+init();
 </script>
-</body></html>
+</body>
+</html>
