@@ -10,17 +10,16 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{min-height:100vh;font-family:Arial,sans-serif;background:linear-gradient(145deg,#fff8d8,#fff,#fff3c4);color:#333;padding:10px}
 .app{width:100%;max-width:480px;margin:auto}
-.header{background:linear-gradient(135deg,#ffd000,#ff9800);border-radius:22px;padding:16px;text-align:center;color:#fff;box-shadow:0 7px 20px #e9a50055;margin-bottom:10px}
-.logo{width:62px;height:62px;margin:auto;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 4px 12px #0002}
-.header h1{margin-top:7px;font-size:23px}.header p{font-size:12px;margin-top:3px}
 .clock-card,.result-card,.history,.stat{background:#fff;border-radius:18px;box-shadow:0 4px 15px #0000000d}
-.clock-card{text-align:center;padding:12px;margin-bottom:10px}.clock{font-size:29px;font-weight:bold;color:#ed9200}.date{font-size:12px;color:#777;margin-top:3px}
+.clock-card{text-align:center;padding:8px;margin-bottom:10px}.clock{font-size:16px;font-weight:bold;color:#ed9200}.date{font-size:12px;color:#777;margin-top:3px}
 .camera-card{background:#171717;border-radius:21px;padding:10px;box-shadow:0 7px 20px #0004}.camera-title{color:#fff;font-weight:bold;font-size:14px;padding:3px 0 8px}.video-wrap{position:relative}
 video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:15px;background:#000;border:3px solid #555}
 .scan-line{position:absolute;left:5%;right:5%;height:3px;background:#ffe000;box-shadow:0 0 12px #ffe000;top:10%;animation:scan 2.2s infinite;border-radius:5px}
 @keyframes scan{0%{top:10%}50%{top:88%}100%{top:10%}}
 .camera-status{margin-top:8px;padding:9px;border-radius:10px;background:#282828;color:#ddd;text-align:center;font-size:12px}
-.result-card{margin-top:10px;padding:15px;text-align:center}.result-icon{width:58px;height:58px;margin:auto;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:27px}
+.btn-start{width:100%;padding:12px;margin-top:8px;border:0;border-radius:12px;background:linear-gradient(135deg,#ffd000,#ff9800);color:#fff;font-weight:bold;font-size:14px;cursor:pointer}
+.btn-start:active{transform:scale(0.98)}
+.result-card{margin-top:10px;padding:15px;text-align:center}.result-icon{width:58px;height:30px;margin:auto;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:27px}
 .result-name{font-size:21px;font-weight:bold;margin-top:8px}.result-status{display:inline-block;margin-top:7px;padding:6px 13px;border-radius:20px;background:#eee;color:#666;font-size:12px;font-weight:bold}
 .success{background:#e7fff0!important;color:#139447!important}.warning{background:#fff3d0!important;color:#b87500!important}.error{background:#ffe8e8!important;color:#d52222!important}.info{background:#e8f2ff!important;color:#2671c9!important}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.stat{text-align:center;padding:12px}.stat-number{font-size:23px;font-weight:bold;color:#ed9200}.stat-label{font-size:11px;color:#777;margin-top:3px}
@@ -33,9 +32,18 @@ video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:1
 <body>
 <div id="loading" class="loading"><div class="loading-box"><div class="spinner"></div><h3 style="margin-top:13px">Menyiapkan Sistem</h3><p id="loadingText" style="font-size:11px;color:#777;margin-top:5px">Memuat AI...</p></div></div>
 <div class="app">
-<div class="header"><div class="logo">🛒</div><h1>SARAHmart</h1><p>🤖 AUTO ABSEN WAJAH + LIVENESS</p></div>
 <div class="clock-card"><div id="clock" class="clock">00:00:00</div><div id="date" class="date">Memuat tanggal...</div></div>
-<div class="camera-card"><div class="camera-title">📷 Kamera Absensi</div><div class="video-wrap"><video id="video" autoplay muted playsinline></video><div class="scan-line"></div></div><div id="cameraStatus" class="camera-status">⏳ Menyiapkan kamera...</div></div>
+
+<div class="camera-card">
+  <div class="camera-title">📷 Kamera Absensi</div>
+  <div class="video-wrap">
+    <video id="video" autoplay muted playsinline></video>
+    <div class="scan-line"></div>
+  </div>
+  <button id="btnStartCamera" class="btn-start" onclick="startCamera()">▶️ KLIK UNTUK MULAI KAMERA</button>
+  <div id="cameraStatus" class="camera-status">⏳ Klik tombol di atas untuk mengaktifkan kamera</div>
+</div>
+
 <div class="result-card"><div id="resultIcon" class="result-icon">👤</div><div id="namaDetek" class="result-name">Menunggu wajah...</div><div id="resultStatus" class="result-status">Arahkan wajah ke kamera</div></div>
 <div class="stats"><div class="stat"><div id="totalKaryawan" class="stat-number">0</div><div class="stat-label">Karyawan Terdaftar</div></div><div class="stat"><div id="totalAbsen" class="stat-number">0</div><div class="stat-label">Absen Hari Ini</div></div></div>
 <div class="history"><div class="history-header"><h3>📋 Riwayat Hari Ini</h3><button class="refresh" onclick="loadHistory()">↻ Refresh</button></div><div id="historyList"><div class="empty">Belum ada absensi hari ini</div></div></div>
@@ -44,10 +52,11 @@ video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:1
 <script>
 const db=supabase.createClient('https://fbxfoorzeojsqnzcmvic.supabase.co','sb_publishable_Xg3DLbSsRFTsU5ZjxIylkA_JP6pUpSK');
 const SUPABASE_URL = 'https://fbxfoorzeojsqnzcmvic.supabase.co';
+const FOTO_DEFAULT = `${SUPABASE_URL}/storage/v1/object/public/absen-foto/default.jpg`;
 const video=document.getElementById('video');
 let labeledDescriptors=[],dataKaryawan=[],isScanning=false,lastDetectedName='',lastAttendanceTime=0;
-let blinkClosed=false,blinkStart=0,livenessName='',livenessReady=false;
-const COOLDOWN=10000; // 10 detik
+let blinkClosed=false,blinkStart=0,livenessName='',livenessReady=false,cameraOn=false;
+const COOLDOWN=10000;
 
 function updateClock(){
  const n=new Date();
@@ -55,9 +64,7 @@ function updateClock(){
  document.getElementById('date').textContent=n.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
 setInterval(updateClock,1000);updateClock();
-
 function setLoading(t){document.getElementById('loadingText').textContent=t}
-
 function setResult(name,status,icon,text){
  document.getElementById('namaDetek').textContent=name;
  document.getElementById('resultIcon').textContent=icon;
@@ -66,15 +73,19 @@ function setResult(name,status,icon,text){
 }
 
 async function startCamera(){
+ if(cameraOn) return;
  try{
+  document.getElementById('btnStartCamera').classList.add('hidden');
+  document.getElementById('cameraStatus').textContent='⏳ Mengaktifkan kamera...';
   const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
   video.srcObject=s;await video.play();
+  cameraOn=true;
   document.getElementById('cameraStatus').textContent='🟢 Kamera aktif • Arahkan wajah ke kamera';
-  return true;
+  setInterval(scanFace,600); // SCAN DIMULAI SETELAH KAMERA ON
  }catch(e){
-  document.getElementById('cameraStatus').textContent='🔴 Kamera tidak dapat digunakan';
+  document.getElementById('btnStartCamera').classList.remove('hidden');
+  document.getElementById('cameraStatus').textContent='🔴 Gagal: '+e.message;
   setResult('Kamera gagal','error','📷','✕ Izinkan akses kamera');
-  return false;
  }
 }
 
@@ -93,7 +104,7 @@ async function loadFaces(){
  const {data,error}=await db.from('karyawan_wajah').select('*');
  if(error)throw new Error('Database wajah: '+error.message);
  if(!data||!data.length)throw new Error('Belum ada data wajah karyawan');
- dataKaryawan = data; // SIMPAN DATA LENGKAP GO AMBIL ID
+ dataKaryawan = data;
  document.getElementById('totalKaryawan').textContent=data.length;
  labeledDescriptors=data.map(k=>{
   let d=k.descriptor;
@@ -109,33 +120,28 @@ function eyeRatio(points){
  return (a+b)/(2*c);
 }
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
-
 function getEAR(landmarks){
  const l=landmarks.getLeftEye();
  const r=landmarks.getRightEye();
  return (eyeRatio(l)+eyeRatio(r))/2;
 }
-
 function resetLiveness(){
  blinkClosed=false;blinkStart=0;livenessReady=false;livenessName='';
 }
 
-// PERBAIKAN KUNCI: EAR 0.25 ben luwih gampang kedetek
 function checkBlink(landmarks,nama){
  const ear=getEAR(landmarks);
  if(livenessName!==nama){resetLiveness();livenessName=nama}
-
- if(ear<0.25){ // DITURUNKAN DADI 0.25
+ if(ear<0.27){
   if(!blinkClosed){blinkClosed=true;blinkStart=Date.now()}
  }else if(blinkClosed){
   const duration=Date.now()-blinkStart;
-  if(duration>=80&&duration<=1200)livenessReady=true; // 80ms - 1.2s
+  if(duration>=80&&duration<=1200)livenessReady=true;
   blinkClosed=false;
  }
  return livenessReady;
 }
 
-// CEK PAKAI karyawan_id + jam
 async function sudahAbsen(karyawan_id){
  const today=new Date().toISOString().split('T')[0];
  const {data,error}=await db.from('absensi').select('id').eq('karyawan_id',karyawan_id).gte('jam',today).limit(1);
@@ -143,9 +149,28 @@ async function sudahAbsen(karyawan_id){
  return data&&data.length>0;
 }
 
+async function uploadFoto(nama){
+ try{
+  const canvas = document.createElement('canvas');
+  canvas.width = 640;canvas.height = 480;
+  canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.5));
+  const fileName = `${nama}_${Date.now()}.jpg`;
+  const {error} = await db.storage.from('absen-foto').upload(fileName, blob);
+  if(error) throw error;
+  return `${SUPABASE_URL}/storage/v1/object/public/absen-foto/${fileName}`
+ }catch(e){
+  console.error('Upload gagal, pakai foto default:', e);
+  return FOTO_DEFAULT;
+ }
+}
+
 async function simpanAbsen(nama){
  const karyawan = dataKaryawan.find(k => k.nama === nama);
- if(!karyawan) return;
+ if(!karyawan) {
+  setResult(nama,'error','❌','✕ Data karyawan tidak ada');
+  return;
+ }
 
  const already=await sudahAbsen(karyawan.karyawan_id);
  if(already){
@@ -154,61 +179,59 @@ async function simpanAbsen(nama){
   return;
  }
 
- // AMBIL FOTO
- const canvas = document.createElement('canvas');
- canvas.width = 640;canvas.height = 480;
- canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
- const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.5));
- const fileName = `${nama}_${Date.now()}.jpg`;
- await db.storage.from('absen-foto').upload(fileName, blob);
- const fotoUrl = `${SUPABASE_URL}/storage/v1/object/public/absen-foto/${fileName}`
+ setResult(nama,'info','⏳','⏳ Menyimpan absensi...');
+ 
+ const fotoUrl = await uploadFoto(nama);
 
  const {error}=await db.from('absensi').insert({
    karyawan_id: karyawan.karyawan_id,
    nama,
-   jam: new Date(), // TIMESTAMP LENGKAP
+   jam: new Date(),
    tipe: 'masuk',
-   foto_url: fotoUrl,
-   status: 'HADIR'
+   foto_url: fotoUrl
  });
+
  if(error){
-  console.error(error);
-  setResult(nama,'error','❌','✕ Gagal menyimpan absensi');
+  console.error('GAGAL SIMPAN DB:', error);
+  setResult(nama,'error','❌','✕ Gagal: '+error.message);
   return;
  }
+
  setResult(nama,'success','✅','✓ ABSEN BERHASIL');
  lastAttendanceTime=Date.now();
  lastDetectedName=nama;
- resetLiveness(); // RESET SETELAH SUKSES
+ resetLiveness();
  await loadHistory();
 }
 
 async function scanFace(){
- if(isScanning||!video.videoWidth)return;
+ if(!cameraOn || isScanning||!video.videoWidth)return;
  isScanning=true;
  try{
-  const d=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.5})).withFaceLandmarks().withFaceDescriptor();
+  const d=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.4})).withFaceLandmarks().withFaceDescriptor();
   if(!d){
    resetLiveness();
    setResult('Menunggu wajah...','','👤','Arahkan wajah ke kamera');
    isScanning=false;return;
   }
-  const matcher=new faceapi.FaceMatcher(labeledDescriptors,.50);
+  const matcher=new faceapi.FaceMatcher(labeledDescriptors,.55);
   const match=matcher.findBestMatch(d.descriptor);
+  const akurasi = Math.round((1-match.distance)*100);
+
   if(match.label==='unknown'){
    resetLiveness();
-   setResult('Wajah tidak dikenali','error','❓','✕ Wajah tidak terdaftar');
+   setResult('Wajah tidak dikenali','error','❓',`✕ Akurasi: ${akurasi}%`);
    isScanning=false;return;
   }
   const nama=match.label;
   const blink=checkBlink(d.landmarks,nama);
 
   if(!blink){
-   setResult(nama,'info','👁️',`👁️ Kedipkan mata - Akurasi: ${Math.round((1-match.distance)*100)}%`);
+   setResult(nama,'info','😊',`😊 Silakan kedip 1x - Akurasi: ${akurasi}%`);
    isScanning=false;return;
   }
 
-  setResult(nama,'success','👋',`Liveness OK! Akurasi: ${Math.round((1-match.distance)*100)}%`);
+  setResult(nama,'success','👋',`Liveness OK! Akurasi: ${akurasi}%`);
 
   const now=Date.now();
   if(nama!==lastDetectedName||now-lastAttendanceTime>COOLDOWN)await simpanAbsen(nama);
@@ -239,11 +262,9 @@ async function init(){
   setLoading('Memuat sistem...');
   await loadAI();
   await loadFaces();
-  setLoading('Mengaktifkan kamera...');
-  if(!(await startCamera())){document.getElementById('loading').classList.add('hidden');return}
   await loadHistory();
   document.getElementById('loading').classList.add('hidden');
-  setInterval(scanFace,600);
+  // KAMERA GAK LANGSUNG AUTO. TUNGGU KLIK TOMBOL
  }catch(e){
   console.error(e);setLoading('❌ '+e.message);
   setTimeout(()=>document.getElementById('loading').classList.add('hidden'),2500);
