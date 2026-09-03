@@ -18,7 +18,8 @@ video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:1
 @keyframes scan{0%{top:10%}50%{top:88%}100%{top:10%}}
 .camera-status{margin-top:8px;padding:9px;border-radius:10px;background:#282828;color:#ddd;text-align:center;font-size:12px}
 .btn-start{width:100%;padding:12px;margin-top:8px;border:0;border-radius:12px;background:linear-gradient(135deg,#ffd000,#ff9800);color:#fff;font-weight:bold;font-size:14px;cursor:pointer}
-.btn-start:active{transform:scale(0.98)}
+.btn-reset{width:100%;padding:10px;margin-top:6px;border:0;border-radius:12px;background:#e53935;color:#fff;font-weight:bold;font-size:13px;cursor:pointer;display:none}
+.btn-start:active,.btn-reset:active{transform:scale(0.98)}
 .btn-start:disabled{background:#555;color:#888;cursor:not-allowed}
 .result-card{margin-top:10px;padding:15px;text-align:center}.result-icon{width:58px;height:58px;margin:auto;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:27px}
 .result-name{font-size:21px;font-weight:bold;margin-top:8px}.result-status{display:inline-block;margin-top:7px;padding:6px 13px;border-radius:20px;background:#eee;color:#666;font-size:12px;font-weight:bold}
@@ -41,11 +42,12 @@ video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:1
     <video id="video" autoplay muted playsinline></video>
     <div class="scan-line"></div>
   </div>
-  <button id="btnStartCamera" class="btn-start" onclick="startCamera()" disabled>⏳ Memeriksa Syarat Lokasi & Jam...</button>
-  <div id="cameraStatus" class="camera-status">⏳ Memeriksa lokasi GPS dan jam absensi...</div>
+  <button id="btnStartCamera" class="btn-start" onclick="startCamera()">▶️ KLIK UNTUK MULAI KAMERA</button>
+  <button id="btnReset" class="btn-reset" onclick="resetAbsen()">🔄 RESET ABSEN HARI INI</button>
+  <div id="cameraStatus" class="camera-status">✅ Siap digunakan dimanapun</div>
 </div>
 
-<div class="result-card"><div id="resultIcon" class="result-icon">👤</div><div id="namaDetek" class="result-name">Menunggu syarat terpenuhi...</div><div id="resultStatus" class="result-status">Validasi lokasi & waktu aktif</div></div>
+<div class="result-card"><div id="resultIcon" class="result-icon">👤</div><div id="namaDetek" class="result-name">Menunggu mulai kamera...</div><div id="resultStatus" class="result-status">Face Recognition Aktif</div></div>
 <div class="stats"><div class="stat"><div id="totalKaryawan" class="stat-number">0</div><div class="stat-label">Karyawan Terdaftar</div></div><div class="stat"><div id="totalAbsen" class="stat-number">0</div><div class="stat-label">Absen Hari Ini</div></div></div>
 <div class="history"><div class="history-header"><h3>📋 Riwayat Hari Ini</h3><button class="refresh" onclick="loadHistory()">↻ Refresh</button></div><div id="historyList"><div class="empty">Belum ada absensi hari ini</div></div></div>
 <div class="footer">SARAHmart • Sistem Auto Absen</div>
@@ -57,19 +59,13 @@ const FOTO_DEFAULT = `${SUPABASE_URL}/storage/v1/object/public/absen-foto/defaul
 const video=document.getElementById('video');
 let labeledDescriptors=[],dataKaryawan=[],isScanning=false,lastDetectedName='',lastAttendanceTime=0;
 let blinkClosed=false,blinkStart=0,livenessName='',livenessReady=false,cameraOn=false;
-let activeTipeAbsen = null; // KUNCI BARU: LOCK TIPE ABSEN
+let activeNama = null;
 const COOLDOWN=10000;
-
-// Konfigurasi Syarat Baru
-const TARGET_LAT = -6.8878247;
-const TARGET_LNG = 112.4560587;
-const MAX_RADIUS = 100; // dalam meter
 
 function updateClock(){
  const n=new Date();
  document.getElementById('clock').textContent=n.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
  document.getElementById('date').textContent=n.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
- if(!cameraOn) checkConditions(); // HANYA CEK JIKA KAMERA BELUM ON
 }
 setInterval(updateClock,1000);updateClock();
 
@@ -81,106 +77,20 @@ function setResult(name,status,icon,text){
  e.className='result-status '+status;e.textContent=text;
 }
 
-// Hitung Jarak Haversine (dalam meter)
-function calculateDistance(lat1, lon1, lat2, lon2) {
- const R = 6371e3;
- const dLat = (lat2 - lat1) * Math.PI / 180;
- const dLon = (lon2 - lon1) * Math.PI / 180;
- const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-           Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-           Math.sin(dLon/2) * Math.sin(dLon/2);
- const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
- return R * c;
-}
-
-// Periksa Jam Absensi
-function getAbsenTypeByTime() {
- const now = new Date();
- const hours = now.getHours();
- const minutes = now.getMinutes();
- const currentTimeVal = hours * 60 + minutes;
-
- const masukStart = 6 * 60 + 30; // 06:30
- const masukEnd = 7 * 60 + 30; // 07:30
- const pulangStart = 20 * 60; // 20:00
- const pulangEnd = 21 * 60; // 21:00
-
- if (currentTimeVal >= masukStart && currentTimeVal <= masukEnd) {
-  return 'masuk';
- } else if (currentTimeVal >= pulangStart && currentTimeVal <= pulangEnd) {
-  return 'pulang';
- }
- return null;
-}
-
-// Validasi Gabungan (Jam & Lokasi)
-async function checkConditions() {
- const btn = document.getElementById('btnStartCamera');
- const statusEl = document.getElementById('cameraStatus');
-
- // 1. Cek Jam Terlebih Dahulu
- const tipeAbsen = getAbsenTypeByTime();
- if (!tipeAbsen) {
-  btn.disabled = true;
-  btn.textContent = '⛔ Diluar Jam Absen';
-  statusEl.textContent = '❌ Jam absen aktif: 06:30-07:30 (Masuk) & 20:00-21:00 (Pulang)';
-  return;
- }
-
- // 2. Cek GPS / Lokasi
- if (!navigator.geolocation) {
-  btn.disabled = true;
-  statusEl.textContent = '🔴 Perangkat tidak mendukung GPS';
-  return;
- }
-
- navigator.geolocation.getCurrentPosition(
-  (position) => {
-   const userLat = position.coords.latitude;
-   const userLng = position.coords.longitude;
-   const distance = calculateDistance(userLat, userLng, TARGET_LAT, TARGET_LNG);
-
-   if (distance <= MAX_RADIUS) {
-    btn.disabled = false;
-    btn.textContent = `▶️ KLIK UNTUK MULAI KAMERA (${tipeAbsen.toUpperCase()})`;
-    statusEl.textContent = `🟢 Lokasi Valid (${Math.round(distance)}m) & Jam Sesuai. Silahkan mulai!`;
-   } else {
-    btn.disabled = true;
-    btn.textContent = '⛔ Diluar Radius Toko';
-    statusEl.textContent = `❌ Anda berada di luar radius toko (Jarak: ${Math.round(distance)}m, Maks: 100m)`;
-   }
-  },
-  (error) => {
-   btn.disabled = true;
-   statusEl.textContent = '🔴 Gagal mendeteksi GPS: ' + error.message;
-  },
-  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
- );
-}
-
 async function startCamera(){
  if(cameraOn) return;
-
- const tipeAbsen = getAbsenTypeByTime();
- if(!tipeAbsen){
-  alert('⛔ Sudah diluar jam absensi!');
-  return;
- }
- activeTipeAbsen = tipeAbsen; // LOCK TIPE ABSEN SAAT MULAI
-
  try{
   document.getElementById('btnStartCamera').classList.add('hidden');
-  document.getElementById('cameraStatus').textContent=`⏳ Mengaktifkan kamera - Mode: ${tipeAbsen.toUpperCase()}`;
+  document.getElementById('cameraStatus').textContent=`⏳ Mengaktifkan kamera...`;
   const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
   video.srcObject=s;await video.play();
   cameraOn=true;
-  document.getElementById('cameraStatus').textContent=`🟢 Kamera aktif • Mode: ${tipeAbsen.toUpperCase()} • Arahkan wajah ke kamera`;
+  document.getElementById('cameraStatus').textContent=`🟢 Kamera aktif • Kedip pelan 1x & wajah terang`;
   setInterval(scanFace,600);
  }catch(e){
   document.getElementById('btnStartCamera').classList.remove('hidden');
   document.getElementById('cameraStatus').textContent='🔴 Gagal: '+e.message;
   setResult('Kamera gagal','error','📷','✕ Izinkan akses kamera');
-  activeTipeAbsen = null;
  }
 }
 
@@ -224,22 +134,54 @@ function resetLiveness(){
  blinkClosed=false;blinkStart=0;livenessReady=false;livenessName='';
 }
 
+// VERSI GAMPANG: 0.30 DAN 60ms
 function checkBlink(landmarks,nama){
  const ear=getEAR(landmarks);
  if(livenessName!==nama){resetLiveness();livenessName=nama}
- if(ear<0.27){
+ if(ear<0.30){ 
   if(!blinkClosed){blinkClosed=true;blinkStart=Date.now()}
  }else if(blinkClosed){
   const duration=Date.now()-blinkStart;
-  if(duration>=80&&duration<=1200)livenessReady=true;
+  if(duration>=60&&duration<=1500)livenessReady=true;
   blinkClosed=false;
  }
  return livenessReady;
 }
 
-async function sudahAbsen(karyawan_id, tipe){
- const today=new Date().toISOString().split('T')[0];
- const {data,error}=await db.from('absensi').select('id').eq('karyawan_id',karyawan_id).eq('tipe',tipe).gte('jam',today).limit(1);
+async function resetAbsen(){
+ let targetName = activeNama;
+ const tglHariIni = new Date().toISOString().split('T')[0];
+
+ if(!targetName && lastDetectedName) {
+  targetName = lastDetectedName;
+ }
+ if(!targetName) {
+  const {data} = await db.from('absensi').select('nama').gte('jam', tglHariIni).order('jam', {ascending: false}).limit(1);
+  if(data && data.length > 0) {
+   targetName = data[0].nama;
+  }
+ }
+ if(!targetName) {
+  alert('Belum ada karyawan yang terdeteksi atau absen hari iki untuk direset.');
+  return;
+ }
+ if(!confirm(`Yakin reset absen ${targetName} hari iki?`)) return;
+ const karyawan = dataKaryawan.find(k => k.nama === targetName);
+ if(!karyawan) {
+  alert('Data karyawan tidak ditemukan.');
+  return;
+ }
+ const {error} = await db.from('absensi').delete().eq('karyawan_id', karyawan.karyawan_id).gte('jam', tglHariIni);
+ if(error){ alert('Gagal reset: '+error.message); return; }
+ document.getElementById('btnReset').style.display = 'none';
+ activeNama = null; lastDetectedName = ''; lastAttendanceTime = 0; resetLiveness();
+ setResult('Reset berhasil','success','✅','Silakan absen lagi');
+ await loadHistory();
+}
+
+async function sudahAbsen(karyawan_id){
+ const tglHariIni = new Date().toISOString().split('T')[0];
+ const {data,error}=await db.from('absensi').select('id').eq('karyawan_id',karyawan_id).gte('jam',tglHariIni).limit(1);
  if(error)throw error;
  return data&&data.length>0;
 }
@@ -267,15 +209,11 @@ async function simpanAbsen(nama){
   return;
  }
 
- const tipeAbsen = activeTipeAbsen; // PAKAI YANG DI LOCK
- if(!tipeAbsen){
-  setResult(nama,'error','❌','✕ Tipe absensi tidak valid');
-  return;
- }
-
- const already=await sudahAbsen(karyawan.karyawan_id, tipeAbsen);
+ const already=await sudahAbsen(karyawan.karyawan_id);
  if(already){
-  setResult(nama,'warning','⚠️',`⚠ Sudah absen ${tipeAbsen} hari ini`);
+  setResult(nama,'warning','⚠️',`⚠ Sudah absen hari iki`);
+  activeNama = nama;
+  document.getElementById('btnReset').style.display = 'block';
   lastAttendanceTime=Date.now();
   return;
  }
@@ -288,7 +226,7 @@ async function simpanAbsen(nama){
    karyawan_id: karyawan.karyawan_id,
    nama,
    jam: new Date(),
-   tipe: tipeAbsen,
+   tipe: 'masuk',
    foto_url: fotoUrl
  });
 
@@ -298,7 +236,9 @@ async function simpanAbsen(nama){
   return;
  }
 
- setResult(nama,'success','✅',`✓ ABSEN ${tipeAbsen.toUpperCase()} BERHASIL`);
+ setResult(nama,'success','✅',`✓ ABSEN BERHASIL`);
+ activeNama = nama;
+ document.getElementById('btnReset').style.display = 'block';
  lastAttendanceTime=Date.now();
  lastDetectedName=nama;
  resetLiveness();
@@ -315,7 +255,7 @@ async function scanFace(){
    setResult('Menunggu wajah...','','👤','Arahkan wajah ke kamera');
    isScanning=false;return;
   }
-  const matcher=new faceapi.FaceMatcher(labeledDescriptors,.55);
+  const matcher=new faceapi.FaceMatcher(labeledDescriptors,.75);
   const match=matcher.findBestMatch(d.descriptor);
   const akurasi = Math.round((1-match.distance)*100);
 
@@ -328,7 +268,7 @@ async function scanFace(){
   const blink=checkBlink(d.landmarks,nama);
 
   if(!blink){
-   setResult(nama,'info','😊',`😊 Silakan kedip 1x - Akurasi: ${akurasi}%`);
+   setResult(nama,'info','😊',`😊 KEDIP 1x PELAN - Akurasi: ${akurasi}%`);
    isScanning=false;return;
   }
 
@@ -342,15 +282,15 @@ async function scanFace(){
 }
 
 async function loadHistory(){
- const today=new Date().toISOString().split('T')[0];
- const {data,error}=await db.from('absensi').select('*').gte('jam',today).order('jam',{ascending:false});
+ const tglHariIni = new Date().toISOString().split('T')[0];
+ const {data,error}=await db.from('absensi').select('*').gte('jam',tglHariIni).order('jam',{ascending:false});
  if(error){console.error(error);return}
  document.getElementById('totalAbsen').textContent=data?data.length:0;
  const list=document.getElementById('historyList');
- if(!data||!data.length){list.innerHTML='<div class="empty">Belum ada absensi hari ini</div>';return}
+ if(!data||!data.length){list.innerHTML='<div class="empty">Belum ada absensi hari iki</div>';return}
  list.innerHTML=data.map(x=>{
   const initial=x.nama.trim().charAt(0).toUpperCase();
-  return `<div class="item"><div class="avatar">${initial}</div><div class="item-info"><div class="item-name">${escapeHTML(x.nama)}</div><div class="item-time">🕐 ${new Date(x.jam).toLocaleTimeString('id-ID')}</div></div><div class="badge">✓ ${x.tipe||'HADIR'}</div></div>`;
+  return `<div class="item"><div class="avatar">${initial}</div><div class="item-info"><div class="item-name">${escapeHTML(x.nama)}</div><div class="item-time">🕐 ${new Date(x.jam).toLocaleTimeString('id-ID')}</div></div><div class="badge">✓ ${x.tipe||'MASUK'}</div></div>`;
  }).join('');
 }
 
